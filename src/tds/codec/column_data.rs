@@ -31,7 +31,6 @@ use crate::{
 };
 use bytes::BufMut;
 pub(crate) use bytes_mut_with_type_info::BytesMutWithTypeInfo;
-use encoding::EncoderTrap;
 use std::borrow::{BorrowMut, Cow};
 use uuid::Uuid;
 
@@ -205,12 +204,7 @@ impl<'a> Encode<BytesMutWithTypeInfo<'a>> for ColumnData<'a> {
                 dst.put_i16_le(val);
             }
             (ColumnData::I32(opt), Some(TypeInfo::FixedLen(FixedLenType::Int4))) => {
-                //dst.put_i32_le(val);
-                if let Some(val) = opt {
-                    dst.put_i32_le(val);
-                } else {
-                    dst.put_u8(0);
-                }
+                dst.put_i32_le(val);
             }
             (ColumnData::I32(opt), Some(TypeInfo::VarLenSized(vlc)))
                 if vlc.r#type() == VarLenType::Intn =>
@@ -307,10 +301,19 @@ impl<'a> Encode<BytesMutWithTypeInfo<'a>> for ColumnData<'a> {
                     || vlc.r#type() == VarLenType::BigVarChar =>
             {
                 if let Some(str) = opt {
-                    let encoder = vlc.collation().as_ref().unwrap().encoding()?;
-                    let bytes = encoder
-                        .encode(str.as_ref(), EncoderTrap::Strict)
-                        .map_err(crate::Error::Encoding)?;
+                    let mut encoder = vlc.collation().as_ref().unwrap().encoding()?.new_encoder();
+                    let len = encoder
+                        .max_buffer_length_from_utf8_without_replacement(str.len())
+                        .unwrap();
+                    let mut bytes = Vec::with_capacity(len);
+                    let (res, _) = encoder.encode_from_utf8_to_vec_without_replacement(
+                        str.as_ref(),
+                        &mut bytes,
+                        true,
+                    );
+                    if let encoding_rs::EncoderResult::Unmappable(_) = res {
+                        return Err(crate::Error::Encoding("unrepresentable character".into()));
+                    }
 
                     if bytes.len() > vlc.len() {
                         return Err(crate::Error::BulkInput(
