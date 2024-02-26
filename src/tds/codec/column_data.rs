@@ -204,8 +204,13 @@ impl<'a> Encode<BytesMutWithTypeInfo<'a>> for ColumnData<'a> {
 
                 dst.put_i16_le(val);
             }
-            (ColumnData::I32(Some(val)), Some(TypeInfo::FixedLen(FixedLenType::Int4))) => {
-                dst.put_i32_le(val);
+            (ColumnData::I32(opt), Some(TypeInfo::FixedLen(FixedLenType::Int4))) => {
+                //dst.put_i32_le(val);
+                if let Some(val) = opt {
+                    dst.put_i32_le(val);
+                } else {
+                    dst.put_u8(0);
+                }
             }
             (ColumnData::I32(opt), Some(TypeInfo::VarLenSized(vlc)))
                 if vlc.r#type() == VarLenType::Intn =>

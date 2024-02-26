@@ -103,6 +103,49 @@ macro_rules! test_bulk_type {
 
                 Ok(())
             }
+
+            #[test_on_runtimes]
+            async fn [< bulk_load_required_sequence_ $name >]<S>(mut conn: tiberius::Client<S>) -> Result<()>
+            where
+                S: AsyncRead + AsyncWrite + Unpin + Send,
+            {
+                let seq = random_table().await;
+                conn.execute(
+                    &format!(
+                        "DROP SEQUENCE IF EXISTS dbo.{};CREATE SEQUENCE dbo.{} START WITH 1 INCREMENT BY 1 CACHE 100000;",
+                        seq,
+                        seq
+                    ),
+                    &[],
+                ).await?;
+
+                let table = format!("{}", random_table().await);
+                conn.execute(
+                    &format!(
+                        "DROP TABLE IF EXISTS {};CREATE TABLE {} (id INT NOT NULL DEFAULT ((NEXT VALUE FOR dbo.{})), content {} NOT NULL)",
+                        table,
+                        table,
+                        seq,
+                        $sql_type
+                    ),
+                    &[],
+                ).await?;
+
+                let mut req = conn.bulk_insert(&table).await?;
+                let none:Option<i32> = None;
+                for i in $generator {
+                    let mut row = TokenRow::new();
+                    row.push(none.into_sql());
+                    row.push(i.into_sql());
+                    req.send(row).await?;
+                }
+
+                let res = req.finalize().await?;
+
+                assert_eq!($total_generated, res.total());
+
+                Ok(())
+            }
         }
     };
 }
