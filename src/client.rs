@@ -14,7 +14,7 @@ pub use auth::*;
 pub use config::*;
 pub(crate) use connection::*;
 
-use crate::bulk_options::{SqlBulkCopyOptions, ColumOrderHint};
+use crate::bulk_options::{ColumOrderHint, SqlBulkCopyOptions};
 use crate::tds::stream::ReceivedToken;
 use crate::{
     result::ExecuteResult,
@@ -257,7 +257,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send> Client<S> {
         &'a mut self,
         table: &'a str,
     ) -> crate::Result<BulkLoadRequest<'a, S>> {
-        return self.bulk_insert_with_options(table, &[], Default::default(), &[]).await;
+        return self
+            .bulk_insert_with_options(table, &[], Default::default(), &[])
+            .await;
     }
 
     /// Execute a `BULK INSERT` statement, efficiantly storing a large number of
@@ -389,10 +391,16 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send> Client<S> {
                 query.push_str(
                     &order_hints
                         .iter()
-                        .map(|(col, order)| format!("{} {}", col, match order {
-                            crate::bulk_options::SortOrder::Ascending => "ASC",
-                            crate::bulk_options::SortOrder::Descending => "DESC",
-                        }))
+                        .map(|(col, order)| {
+                            format!(
+                                "{} {}",
+                                col,
+                                match order {
+                                    crate::bulk_options::SortOrder::Ascending => "ASC",
+                                    crate::bulk_options::SortOrder::Descending => "DESC",
+                                }
+                            )
+                        })
                         .join(", "),
                 );
                 query.push_str(")");

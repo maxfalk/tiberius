@@ -203,7 +203,7 @@ impl<'a> Encode<BytesMutWithTypeInfo<'a>> for ColumnData<'a> {
 
                 dst.put_i16_le(val);
             }
-            (ColumnData::I32(opt), Some(TypeInfo::FixedLen(FixedLenType::Int4))) => {
+            (ColumnData::I32(Some(val)), Some(TypeInfo::FixedLen(FixedLenType::Int4))) => {
                 dst.put_i32_le(val);
             }
             (ColumnData::I32(opt), Some(TypeInfo::VarLenSized(vlc)))
@@ -722,7 +722,10 @@ mod tests {
 
         assert_eq!(nd, d);
 
-        reader.read_u8().await.expect_err("decode must consume entire buffer");
+        reader
+            .read_u8()
+            .await
+            .expect_err("decode must consume entire buffer");
     }
 
     #[tokio::test]

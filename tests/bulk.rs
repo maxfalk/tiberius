@@ -131,11 +131,9 @@ macro_rules! test_bulk_type {
                     &[],
                 ).await?;
 
-                let mut req = conn.bulk_insert(&table).await?;
-                let none:Option<i32> = None;
+                let mut req = conn.bulk_insert_with_options(&table, &["content"], Default::default(), &[]).await?;
                 for i in $generator {
                     let mut row = TokenRow::new();
-                    row.push(none.into_sql());
                     row.push(i.into_sql());
                     req.send(row).await?;
                 }
