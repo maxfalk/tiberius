@@ -356,38 +356,26 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send> Client<S> {
         let col_data = columns.iter().map(|c| format!("{}", c)).join(", ");
         let mut query = format!("INSERT BULK {} ({})", table, col_data);
         if options.bits() > 0 || order_hints.len() > 0 {
-            let mut add_separator = false;
-            query.push_str(" WITH (");
-            if options.contains(SqlBulkCopyOptions::KeepNulls) {
-                query.push_str("KEEP_NULLS");
-                add_separator = true;
-            }
-            if options.contains(SqlBulkCopyOptions::TableLock) {
-                if add_separator {
-                    query.push_str(", ");
+            query.push_str(" WITH(");
+            if options.bits() > 0 {
+                if options.contains(SqlBulkCopyOptions::KeepNulls) {
+                    query.push_str("KEEP_NULLS,");
                 }
-                query.push_str("TABLOCK");
-                add_separator = true;
-            }
-            if options.contains(SqlBulkCopyOptions::CheckConstraints) {
-                if add_separator {
-                    query.push_str(", ");
+                if options.contains(SqlBulkCopyOptions::TableLock) {
+                    query.push_str("TABLOCK,");
                 }
-                query.push_str("CHECK_CONSTRAINTS");
-                add_separator = true;
-            }
-            if options.contains(SqlBulkCopyOptions::FireTriggers) {
-                if add_separator {
-                    query.push_str(", ");
+                if options.contains(SqlBulkCopyOptions::CheckConstraints) {
+                    query.push_str("CHECK_CONSTRAINTS,");
                 }
-                query.push_str("FIRE_TRIGGERS");
-                add_separator = true;
+                if options.contains(SqlBulkCopyOptions::FireTriggers) {
+                    query.push_str("FIRE_TRIGGERS,");
+                }
+
+                query.remove(query.len() - 1);
             }
+
             if order_hints.len() > 0 {
-                if add_separator {
-                    query.push_str(", ");
-                }
-                query.push_str("ORDER (");
+                query.push_str("ORDER(");
                 query.push_str(
                     &order_hints
                         .iter()
@@ -401,7 +389,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send> Client<S> {
                                 }
                             )
                         })
-                        .join(", "),
+                        .join(","),
                 );
                 query.push_str(")");
             }

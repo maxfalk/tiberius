@@ -31,7 +31,7 @@ pub enum SortOrder {
     /// Ascending order
     Ascending,
     /// Descending order
-    Descending
+    Descending,
 }
 
 /// An order hint for bulk insert
